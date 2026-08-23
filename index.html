@@ -194,6 +194,10 @@
     position:absolute;top:12px;right:14px;font-family:var(--mono);font-size:10.5px;
     color:var(--blue-700);background:var(--blue-100);padding:4px 9px;border-radius:20px;
   }
+  /* brief ring on the preview when a setting changes, so an edit made from a
+     control lower down the page is still obviously acknowledged */
+  .stage{transition:box-shadow .2s;}
+  .stage.pulse{box-shadow:0 0 0 2.5px var(--blue-500);}
   .hint{
     position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
     font-size:11px;color:var(--muted);background:rgba(255,255,255,.94);
@@ -230,13 +234,25 @@
     .layout .panel:nth-child(1){order:2;}
     .layout .panel:nth-child(2){order:1;}
 
-    /* preview sticks to the top while you scroll the controls */
-    .layout .panel:nth-child(2) .stage{
-      position:sticky;top:calc(66px + env(safe-area-inset-top,0px));z-index:20;
-      min-height:0;padding:10px;
+    /* The header scrolls away on phones so the preview can own the top of
+       the screen — every control change stays visible without scrolling. */
+    header{position:static;}
+
+    /* preview pins to the very top while you scroll the controls */
+    .layout .panel:nth-child(2){
+      position:sticky;top:0;z-index:30;
+      background:var(--paper);
+      padding-top:calc(6px + env(safe-area-inset-top,0px));
+      margin-bottom:2px;
+      box-shadow:0 6px 14px -8px rgba(10,31,68,.28);
     }
-    #canvas{max-height:38vh;}
-    .stage-empty{font-size:13px;padding:24px 0;}
+    .layout .panel:nth-child(2) .stage{min-height:0;padding:8px;}
+    #canvas{max-height:34vh;transition:max-height .18s ease;}
+    .stage-empty{font-size:13px;padding:20px 0;}
+
+    /* While a slider is being dragged the preview shrinks a little so the
+       control and its effect are on screen at the same time. */
+    body.tuning #canvas{max-height:26vh;}
 
     /* the two download buttons live in a fixed bottom bar on phones */
     .actions{
@@ -249,7 +265,9 @@
     button.primary{min-width:0;flex:2;font-size:14px;padding:14px 10px;}
     button.ghost{flex:1;font-size:13px;padding:14px 8px;}
     .progress{position:fixed;left:12px;right:12px;bottom:calc(74px + var(--safe-b));z-index:61;margin:0;}
-    .foot-note{margin-bottom:4px;}
+    /* keeps the pinned preview area as short as possible; the on-canvas
+       badge already reports the output resolution */
+    .foot-note{display:none;}
 
     /* collapsible cards keep the phone screen short */
     .card.collapsible h2{cursor:pointer;margin-bottom:0;padding:2px 0;}
@@ -376,8 +394,8 @@
             </div>
           </div>
           <div class="field">
-            <div class="row-val"><label>Size</label><span id="scaleVal">28%</span></div>
-            <input type="range" id="scale" min="4" max="100" value="28">
+            <div class="row-val"><label>Size</label><span id="scaleVal">34%</span></div>
+            <input type="range" id="scale" min="4" max="100" value="34">
           </div>
           <div class="field">
             <div class="row-val"><label>Opacity</label><span id="opacityVal">100%</span></div>
@@ -487,7 +505,7 @@
   var state = {
     images: [], activeIndex: -1, markImg: null,
     mode: 'logo', position: 'bottom',
-    scalePct: 28, opacityPct: 100, marginPct: 4,
+    scalePct: 34, opacityPct: 100, marginPct: 4,
     backdrop: 'shadow', strengthPct: 55, autoContrast: true,
     text: 'Christ Power Faith Evangelical Church', text2: '',
     font: "-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
@@ -731,10 +749,13 @@
       b.classList.add('active');
       state.position = b.dataset.pos;
       var a = active(); if (a) a.nudge = {x:0,y:0};
-      render();
+      render(); pulse();
     });
   });
 
+  // While a slider is held the preview shrinks slightly (body.tuning), so the
+  // control and the result it changes are both on screen — no scrolling to
+  // check what an adjustment did.
   function bindRange(id, key){
     var el = $(id), out = $(id+'Val');
     el.addEventListener('input', function(){
@@ -742,7 +763,14 @@
       out.textContent = el.value + '%';
       renderThrottled();
     });
-    el.addEventListener('change', render);
+    el.addEventListener('pointerdown', function(){ document.body.classList.add('tuning'); });
+    ['pointerup','pointercancel','blur'].forEach(function(ev){
+      el.addEventListener(ev, function(){ document.body.classList.remove('tuning'); });
+    });
+    el.addEventListener('change', function(){
+      document.body.classList.remove('tuning');
+      render();
+    });
   }
   bindRange('scale','scalePct');
   bindRange('opacity','opacityPct');
@@ -752,9 +780,10 @@
   [['wmText','text'],['wmText2','text2'],['wmFont','font'],['wmColor','color'],
    ['backdrop','backdrop'],['format','format'],['suffix','suffix']].forEach(function(p){
     $(p[0]).addEventListener('input', function(){ state[p[1]] = $(p[0]).value; renderThrottled(); });
+    if ($(p[0]).tagName === 'SELECT') $(p[0]).addEventListener('change', pulse);
   });
-  $('quality').addEventListener('change', function(){ state.quality = +$('quality').value; render(); });
-  $('autoContrast').addEventListener('change', function(){ state.autoContrast = $('autoContrast').checked; render(); });
+  $('quality').addEventListener('change', function(){ state.quality = +$('quality').value; render(); pulse(); });
+  $('autoContrast').addEventListener('change', function(){ state.autoContrast = $('autoContrast').checked; render(); pulse(); });
   $('resetNudge').addEventListener('click', function(){ var a=active(); if(a){ a.nudge={x:0,y:0}; render(); } });
 
   /* ---------------- geometry ---------------- */
@@ -949,7 +978,19 @@
   }
 
   /* ---------------- preview ---------------- */
-  var lastBox = null, rafPending = false;
+  var lastBox = null, rafPending = false, pulseTimer = null;
+
+  // Flash a ring around the preview so a change made from a control further
+  // down the page is visibly acknowledged even before you look up at it.
+  function pulse(){
+    var s = $('stage');
+    s.classList.remove('pulse');
+    void s.offsetWidth;                 // restart the transition
+    s.classList.add('pulse');
+    clearTimeout(pulseTimer);
+    pulseTimer = setTimeout(function(){ s.classList.remove('pulse'); }, 420);
+  }
+
   function renderThrottled(){
     if (rafPending) return;
     rafPending = true;
