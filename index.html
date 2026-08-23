@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f2d63">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CPF Watermark">
+<title>CPF Watermark Studio</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f2d63'/><text x='50' y='68' font-size='44' font-family='sans-serif' font-weight='bold' fill='white' text-anchor='middle'>CPF</text></svg>">
+<style>
+  :root{
+    --blue-900:#0a1f44;
+    --blue-800:#0f2d63;
+    --blue-700:#14418f;
+    --blue-600:#1a56bd;
+    --blue-500:#2570e8;
+    --blue-100:#e7effd;
+    --blue-50:#f4f8ff;
+    --ink:#111827;
+    --muted:#6b7280;
+    --line:#dbe4f2;
+    --paper:#f7f9fc;
+    --danger:#b42318;
+    --mono:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Inter,Roboto,sans-serif;
+    --radius:12px;
+    --safe-b:env(safe-area-inset-bottom,0px);
+    --bar-h:0px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:var(--sans);-webkit-font-smoothing:antialiased;
+    overscroll-behavior-y:none;
+  }
+  .wrap{max-width:1320px;margin:0 auto;padding:0 16px calc(28px + var(--bar-h) + var(--safe-b));}
+
+  /* ================= header ================= */
+  header{
+    background:linear-gradient(135deg,var(--blue-900),var(--blue-700));
+    color:#fff;margin:0 -16px 20px;padding:14px 18px;
+    padding-top:calc(14px + env(safe-area-inset-top,0px));
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    position:sticky;top:0;z-index:40;
+  }
+  .crest{
+    width:38px;height:38px;flex:none;border-radius:10px;
+    background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.35);
+    display:grid;place-items:center;font-weight:800;font-size:12px;letter-spacing:.03em;
+  }
+  .brand-txt h1{margin:0;font-size:16px;font-weight:700;}
+  .brand-txt p{margin:2px 0 0;font-size:11.5px;opacity:.8;line-height:1.3;}
+  .hdr-spacer{flex:1;}
+  .hdr-note{
+    font-size:10.5px;font-family:var(--mono);opacity:.78;
+    border:1px solid rgba(255,255,255,.28);border-radius:20px;padding:5px 11px;
+  }
+
+  /* ================= layout ================= */
+  .layout{display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start;}
+  .panel{display:flex;flex-direction:column;gap:14px;min-width:0;}
+  .card{
+    border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px;background:#fff;box-shadow:0 1px 2px rgba(10,31,68,.05);
+  }
+  .card h2{
+    font-size:11px;text-transform:uppercase;letter-spacing:.09em;
+    color:var(--blue-700);margin:0 0 12px;font-weight:700;
+    display:flex;align-items:center;gap:8px;
+  }
+  .card h2 i{
+    width:19px;height:19px;flex:none;border-radius:6px;background:var(--blue-100);
+    color:var(--blue-700);font-style:normal;font-size:10px;
+    display:grid;place-items:center;font-weight:800;
+  }
+  .qcount{margin-left:auto;font-size:10.5px;font-family:var(--mono);color:var(--muted);font-weight:500;letter-spacing:0;text-transform:none;}
+
+  /* ================= dropzones ================= */
+  .drop{
+    border:1.5px dashed var(--line);border-radius:10px;padding:20px 12px;
+    text-align:center;cursor:pointer;font-size:13px;color:var(--muted);
+    position:relative;transition:.15s;background:var(--blue-50);min-height:64px;
+    display:grid;place-items:center;
+  }
+  .drop:hover,.drop.drag{border-color:var(--blue-500);background:var(--blue-100);color:var(--blue-700);}
+  .drop input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0;}
+  .drop b{color:var(--blue-700);}
+
+  /* camera/gallery split shown on touch devices */
+  .pickrow{display:none;gap:8px;margin-top:10px;}
+  .pickrow button{
+    flex:1;padding:12px;border-radius:9px;border:1px solid var(--line);
+    background:#fff;color:var(--blue-800);font-size:13px;font-weight:600;
+    font-family:var(--sans);cursor:pointer;position:relative;
+  }
+  .pickrow input{position:absolute;inset:0;opacity:0;font-size:0;}
+
+  /* ================= queue ================= */
+  .queue{margin-top:12px;display:flex;flex-direction:column;gap:6px;max-height:240px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .qitem{
+    display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:9px;
+    border:1px solid var(--line);cursor:pointer;background:#fff;transition:.12s;
+  }
+  .qitem.active{background:var(--blue-100);border-color:var(--blue-500);}
+  .qitem img{width:40px;height:40px;object-fit:cover;border-radius:6px;flex:none;background:var(--blue-50);}
+  .qmeta{flex:1;min-width:0;}
+  .qmeta .n{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .qmeta .d{font-size:10.5px;color:var(--muted);font-family:var(--mono);}
+  .qdel{
+    border:none;background:transparent;color:var(--muted);cursor:pointer;
+    font-size:20px;line-height:1;padding:6px 10px;border-radius:6px;flex:none;
+  }
+  .qdel:active{background:#fde8e6;color:var(--danger);}
+
+  .thumb{
+    width:100%;max-height:80px;object-fit:contain;border-radius:8px;margin-top:10px;display:none;
+    background:linear-gradient(45deg,#eef2f9 25%,transparent 25%),
+      linear-gradient(-45deg,#eef2f9 25%,transparent 25%),
+      linear-gradient(45deg,transparent 75%,#eef2f9 75%),
+      linear-gradient(-45deg,transparent 75%,#eef2f9 75%);
+    background-size:16px 16px;background-position:0 0,0 8px,8px -8px,-8px 0;
+  }
+
+  /* ================= form ================= */
+  label{display:block;font-size:12.5px;margin-bottom:6px;font-weight:600;color:#374151;}
+  .field{margin-bottom:15px;}
+  .field:last-child{margin-bottom:0;}
+  .row-val{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .row-val label{margin:0;}
+  .row-val span{font-family:var(--mono);font-size:12px;color:var(--blue-700);font-weight:600;}
+
+  /* fat, thumb-friendly sliders */
+  input[type=range]{
+    width:100%;-webkit-appearance:none;appearance:none;background:transparent;
+    height:34px;margin:0;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:6px;background:var(--blue-100);}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:26px;height:26px;border-radius:50%;
+    background:var(--blue-600);border:3px solid #fff;margin-top:-10px;
+    box-shadow:0 1px 4px rgba(10,31,68,.35);cursor:pointer;
+  }
+  input[type=range]::-moz-range-track{height:6px;border-radius:6px;background:var(--blue-100);}
+  input[type=range]::-moz-range-thumb{
+    width:22px;height:22px;border-radius:50%;background:var(--blue-600);
+    border:3px solid #fff;box-shadow:0 1px 4px rgba(10,31,68,.35);cursor:pointer;
+  }
+
+  select,input[type=text]{
+    width:100%;padding:11px 10px;border:1px solid var(--line);border-radius:9px;
+    background:#fff;font-size:16px;color:var(--ink);font-family:var(--sans);
+  }
+  select:focus,input[type=text]:focus{outline:2px solid var(--blue-500);outline-offset:-1px;border-color:transparent;}
+  input[type=color]{width:100%;height:44px;padding:3px;border:1px solid var(--line);border-radius:9px;background:#fff;cursor:pointer;}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .check{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;font-weight:500;color:#374151;padding:4px 0;}
+  .check input{width:20px;height:20px;margin:0;accent-color:var(--blue-600);flex:none;}
+
+  /* ================= tabs ================= */
+  .tabs{display:flex;gap:5px;background:var(--blue-50);padding:4px;border-radius:10px;margin-bottom:14px;}
+  .tab{
+    flex:1;padding:11px 6px;border:none;background:transparent;border-radius:7px;
+    font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;font-family:var(--sans);
+  }
+  .tab.active{background:var(--blue-700);color:#fff;}
+
+  /* ================= position grid ================= */
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+  .posbtn{
+    padding:0;height:46px;font-size:16px;border:1px solid var(--line);background:#fff;
+    border-radius:8px;cursor:pointer;color:var(--muted);transition:.12s;font-family:var(--sans);
+  }
+  .posbtn.active{background:var(--blue-700);border-color:var(--blue-700);color:#fff;}
+
+  /* ================= stage ================= */
+  .stage{
+    border:1px solid var(--line);border-radius:var(--radius);background:#fff;
+    padding:16px;display:flex;align-items:center;justify-content:center;
+    min-height:420px;position:relative;overflow:hidden;
+  }
+  .stage-empty{color:var(--muted);font-size:13.5px;text-align:center;max-width:320px;line-height:1.75;}
+  .stage-empty .big{font-size:36px;margin-bottom:8px;}
+  .stage-empty b{color:var(--blue-800);}
+  #canvas{
+    max-width:100%;max-height:58vh;border-radius:6px;
+    box-shadow:0 2px 10px rgba(10,31,68,.14);cursor:grab;touch-action:none;
+  }
+  #canvas.dragging{cursor:grabbing;}
+  .stage-badge{
+    position:absolute;top:12px;right:14px;font-family:var(--mono);font-size:10.5px;
+    color:var(--blue-700);background:var(--blue-100);padding:4px 9px;border-radius:20px;
+  }
+  .hint{
+    position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+    font-size:11px;color:var(--muted);background:rgba(255,255,255,.94);
+    padding:5px 12px;border-radius:20px;border:1px solid var(--line);white-space:nowrap;
+  }
+
+  /* ================= actions ================= */
+  .actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
+  button.primary,button.ghost{
+    padding:14px 18px;border-radius:10px;font-size:15px;font-weight:600;
+    cursor:pointer;font-family:var(--sans);transition:.15s;min-height:48px;
+  }
+  button.primary{flex:1;min-width:200px;border:none;background:var(--blue-700);color:#fff;}
+  button.primary:not(:disabled):active{background:var(--blue-600);}
+  button.ghost{background:#fff;border:1px solid var(--line);color:var(--blue-800);}
+  button.ghost:not(:disabled):active{background:var(--blue-50);}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  .foot-note{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:12px;text-align:center;line-height:1.6;}
+  .progress{height:5px;background:var(--blue-100);border-radius:5px;overflow:hidden;margin-top:12px;display:none;}
+  .progress i{display:block;height:100%;width:0;background:var(--blue-600);transition:width .2s;}
+
+  /* collapsible section headers — desktop keeps them open */
+  .card h2 .chev{display:none;}
+
+  /* ================= MOBILE ================= */
+  @media (max-width:900px){
+    .layout{grid-template-columns:1fr;gap:16px;}
+    .wrap{padding-left:12px;padding-right:12px;}
+    header{margin:0 -12px 14px;padding:12px 14px;padding-top:calc(12px + env(safe-area-inset-top,0px));}
+    .hdr-note{display:none;}
+    .brand-txt h1{font-size:15px;}
+
+    /* preview first, controls under it */
+    .layout .panel:nth-child(1){order:2;}
+    .layout .panel:nth-child(2){order:1;}
+
+    /* preview sticks to the top while you scroll the controls */
+    .layout .panel:nth-child(2) .stage{
+      position:sticky;top:calc(66px + env(safe-area-inset-top,0px));z-index:20;
+      min-height:0;padding:10px;
+    }
+    #canvas{max-height:38vh;}
+    .stage-empty{font-size:13px;padding:24px 0;}
+
+    /* the two download buttons live in a fixed bottom bar on phones */
+    .actions{
+      position:fixed;left:0;right:0;bottom:0;z-index:60;margin:0;
+      background:rgba(255,255,255,.96);backdrop-filter:blur(12px);
+      border-top:1px solid var(--line);
+      padding:10px 12px calc(10px + var(--safe-b));
+      gap:8px;flex-wrap:nowrap;
+    }
+    button.primary{min-width:0;flex:2;font-size:14px;padding:14px 10px;}
+    button.ghost{flex:1;font-size:13px;padding:14px 8px;}
+    .progress{position:fixed;left:12px;right:12px;bottom:calc(74px + var(--safe-b));z-index:61;margin:0;}
+    .foot-note{margin-bottom:4px;}
+
+    /* collapsible cards keep the phone screen short */
+    .card.collapsible h2{cursor:pointer;margin-bottom:0;padding:2px 0;}
+    .card.collapsible.open h2{margin-bottom:14px;}
+    .card.collapsible h2 .chev{
+      display:block;margin-left:auto;font-size:13px;color:var(--muted);
+      transition:transform .18s;
+    }
+    .card.collapsible h2 .qcount + .chev{margin-left:8px;}
+    .card.collapsible.open h2 .chev{transform:rotate(180deg);}
+    .card.collapsible .body{display:none;}
+    .card.collapsible.open .body{display:block;}
+
+    .queue{max-height:210px;}
+    .two{grid-template-columns:1fr;}
+    .hint{font-size:10.5px;padding:4px 10px;}
+  }
+
+  @media (max-width:380px){
+    .posbtn{height:42px;font-size:15px;}
+    .brand-txt p{display:none;}
+  }
+
+  /* landscape phone: keep the preview from eating the screen */
+  @media (max-width:900px) and (orientation:landscape){
+    #canvas{max-height:52vh;}
+    .layout .panel:nth-child(2) .stage{position:static;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crest">CPF</div>
+    <div class="brand-txt">
+      <h1>Watermark Studio</h1>
+      <p>Christ Power Faith Evangelical Church &middot; Media Team</p>
+    </div>
+    <div class="hdr-spacer"></div>
+    <div class="hdr-note">100% offline &middot; nothing leaves this device</div>
+  </header>
+
+  <div class="layout">
+    <!-- ============ CONTROLS ============ -->
+    <div class="panel">
+
+      <div class="card collapsible open" id="cardSource">
+        <h2><i>1</i>Photos <span class="qcount" id="qcount"></span><span class="chev">&#9660;</span></h2>
+        <div class="body">
+          <div class="drop" id="dropImage">
+            <span id="dropImageLabel">Tap to choose <b>one or many</b> photos</span>
+            <input type="file" id="imageInput" accept="image/*" multiple>
+          </div>
+          <div class="pickrow" id="pickrow">
+            <button type="button">Take photo<input type="file" id="cameraInput" accept="image/*" capture="environment"></button>
+            <button type="button">Gallery<input type="file" id="galleryInput" accept="image/*" multiple></button>
+          </div>
+          <div class="queue" id="queue"></div>
+        </div>
+      </div>
+
+      <div class="card collapsible open" id="cardMark">
+        <h2><i>2</i>Watermark<span class="chev">&#9660;</span></h2>
+        <div class="body">
+          <div class="tabs">
+            <button class="tab active" data-tab="logo">Logo</button>
+            <button class="tab" data-tab="text">Text</button>
+          </div>
+
+          <div id="tabLogo">
+            <div class="drop" id="dropMark">
+              <span id="dropMarkLabel">Church logo &mdash; <b>PNG with transparency</b> works best</span>
+              <input type="file" id="markInput" accept="image/*">
+            </div>
+            <img id="markThumb" class="thumb" alt="">
+          </div>
+
+          <div id="tabText" style="display:none;">
+            <div class="field">
+              <label>Line 1</label>
+              <input type="text" id="wmText" value="Christ Power Faith Evangelical Church">
+            </div>
+            <div class="field">
+              <label>Line 2 (optional)</label>
+              <input type="text" id="wmText2" placeholder="e.g. @cpfchurch">
+            </div>
+            <div class="two field">
+              <div>
+                <label>Font</label>
+                <select id="wmFont">
+                  <option value="Georgia, 'Times New Roman', serif">Serif (Georgia)</option>
+                  <option value="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" selected>Sans (Clean)</option>
+                  <option value="'Trebuchet MS', Verdana, sans-serif">Trebuchet</option>
+                  <option value="Impact, 'Arial Black', sans-serif">Impact (Bold)</option>
+                </select>
+              </div>
+              <div>
+                <label>Colour</label>
+                <input type="color" id="wmColor" value="#ffffff">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card collapsible open" id="cardPos">
+        <h2><i>3</i>Placement<span class="chev">&#9660;</span></h2>
+        <div class="body">
+          <div class="field">
+            <div class="grid3" id="posGrid">
+              <button class="posbtn" data-pos="top-left">&#8598;</button>
+              <button class="posbtn" data-pos="top">&#8593;</button>
+              <button class="posbtn" data-pos="top-right">&#8599;</button>
+              <button class="posbtn" data-pos="left">&#8592;</button>
+              <button class="posbtn" data-pos="center">&bull;</button>
+              <button class="posbtn" data-pos="right">&#8594;</button>
+              <button class="posbtn" data-pos="bottom-left">&#8601;</button>
+              <button class="posbtn active" data-pos="bottom">&#8595;</button>
+              <button class="posbtn" data-pos="bottom-right">&#8600;</button>
+            </div>
+          </div>
+          <div class="field">
+            <div class="row-val"><label>Size</label><span id="scaleVal">28%</span></div>
+            <input type="range" id="scale" min="4" max="100" value="28">
+          </div>
+          <div class="field">
+            <div class="row-val"><label>Opacity</label><span id="opacityVal">100%</span></div>
+            <input type="range" id="opacity" min="10" max="100" value="100">
+          </div>
+          <div class="field">
+            <div class="row-val"><label>Edge margin</label><span id="marginVal">4%</span></div>
+            <input type="range" id="margin" min="0" max="20" value="4">
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <button class="ghost" id="resetNudge" style="width:100%;font-size:13px;">Reset manual nudge</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card collapsible open" id="cardLegib">
+        <h2><i>4</i>Legibility<span class="chev">&#9660;</span></h2>
+        <div class="body">
+          <div class="field">
+            <label>Backing behind the watermark</label>
+            <select id="backdrop">
+              <option value="none">None</option>
+              <option value="shadow" selected>Soft drop shadow</option>
+              <option value="glow">Outer glow (for dark photos)</option>
+              <option value="scrim">Gradient scrim along edge</option>
+              <option value="plate">Solid plate / lozenge</option>
+            </select>
+          </div>
+          <div class="field">
+            <div class="row-val"><label>Backing strength</label><span id="strengthVal">55%</span></div>
+            <input type="range" id="strength" min="0" max="100" value="55">
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label class="check">
+              <input type="checkbox" id="autoContrast" checked>
+              Auto-adapt to photo brightness
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card collapsible" id="cardExport">
+        <h2><i>5</i>Export<span class="chev">&#9660;</span></h2>
+        <div class="body">
+          <div class="two field">
+            <div>
+              <label>Format</label>
+              <select id="format">
+                <option value="auto" selected>Match source</option>
+                <option value="image/jpeg">JPEG</option>
+                <option value="image/png">PNG (lossless)</option>
+                <option value="image/webp">WebP</option>
+              </select>
+            </div>
+            <div>
+              <label>Quality</label>
+              <select id="quality">
+                <option value="1">Maximum (100)</option>
+                <option value="0.96" selected>Very high (96)</option>
+                <option value="0.9">High (90)</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label>Filename suffix</label>
+            <input type="text" id="suffix" value="-cpf">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PREVIEW ============ -->
+    <div class="panel">
+      <div class="stage" id="stage">
+        <div class="stage-empty" id="stageEmpty">
+          <div class="big">&#9986;</div>
+          Add photos below to see a live, full-resolution preview here.<br><br>
+          <b>Everything runs on your phone.</b><br>No photo is ever uploaded to a server.
+        </div>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <div class="stage-badge" id="stageBadge" style="display:none;"></div>
+        <div class="hint" id="hint" style="display:none;">Drag the watermark to fine-tune</div>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="downloadBtn" disabled>Save watermarked photo</button>
+        <button class="ghost" id="shareBtn" disabled>Share</button>
+        <button class="ghost" id="downloadAllBtn" disabled>Save all</button>
+      </div>
+      <div class="progress" id="progress"><i id="progressBar"></i></div>
+      <div class="foot-note" id="footNote">
+        Full original resolution preserved &middot; no downscaling
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var $ = function(id){ return document.getElementById(id); };
+  var canvas = $('canvas'), ctx = canvas.getContext('2d');
+  var isTouch = matchMedia('(hover:none) and (pointer:coarse)').matches;
+
+  /* ---------------- state ---------------- */
+  var state = {
+    images: [], activeIndex: -1, markImg: null,
+    mode: 'logo', position: 'bottom',
+    scalePct: 28, opacityPct: 100, marginPct: 4,
+    backdrop: 'shadow', strengthPct: 55, autoContrast: true,
+    text: 'Christ Power Faith Evangelical Church', text2: '',
+    font: "-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif",
+    color: '#ffffff',
+    format: 'auto', quality: 0.96, suffix: '-cpf'
+  };
+  var active = function(){ return state.images[state.activeIndex] || null; };
+
+  /* ---------- mobile chrome: collapsibles + bottom-bar spacing ---------- */
+  if (isTouch){
+    $('pickrow').style.display = 'flex';
+    $('dropImageLabel').innerHTML = 'Tap to choose <b>one or many</b> photos';
+    // On phones, only the first two sections start open.
+    ['cardPos','cardLegib','cardExport'].forEach(function(id){ $(id).classList.remove('open'); });
+  }
+  document.querySelectorAll('.card.collapsible h2').forEach(function(h){
+    h.addEventListener('click', function(){
+      if (window.innerWidth > 900) return;      // desktop: always open
+      h.parentNode.classList.toggle('open');
+    });
+  });
+  function syncBarHeight(){
+    var bar = document.querySelector('.actions');
+    var fixed = getComputedStyle(bar).position === 'fixed';
+    document.documentElement.style.setProperty('--bar-h', fixed ? bar.offsetHeight + 'px' : '0px');
+  }
+  window.addEventListener('resize', syncBarHeight);
+  window.addEventListener('orientationchange', function(){ setTimeout(syncBarHeight, 250); });
+
+  /* ---------------- EXIF orientation ---------------- */
+  // Phone photos carry a rotation flag. If we ignore it, portrait shots come
+  // out sideways — so we read it and bake the rotation into the pixels.
+  function readOrientation(file){
+    return new Promise(function(resolve){
+      var r = new FileReader();
+      r.onload = function(e){
+        try{
+          var v = new DataView(e.target.result);
+          if (v.byteLength < 4 || v.getUint16(0,false) !== 0xFFD8) return resolve(1);
+          var off = 2;
+          while (off + 4 < v.byteLength){
+            var marker = v.getUint16(off,false);
+            if ((marker & 0xFF00) !== 0xFF00) return resolve(1);
+            if (marker === 0xFFE1){
+              if (v.getUint32(off+4,false) !== 0x45786966) return resolve(1);
+              var tiff = off + 10;
+              var little = v.getUint16(tiff,false) === 0x4949;
+              var dirStart = tiff + v.getUint32(tiff+4,little);
+              var entries = v.getUint16(dirStart,little);
+              for (var i=0;i<entries;i++){
+                var entry = dirStart + 2 + i*12;
+                if (v.getUint16(entry,little) === 0x0112)
+                  return resolve(v.getUint16(entry+8,little) || 1);
+              }
+              return resolve(1);
+            }
+            off += 2 + v.getUint16(off+2,false);
+          }
+        }catch(err){}
+        resolve(1);
+      };
+      r.onerror = function(){ resolve(1); };
+      r.readAsArrayBuffer(file.slice(0, 256*1024));
+    });
+  }
+
+  // Bake orientation into an offscreen canvas so preview, drag maths and
+  // export all work with upright pixels.
+  function normalize(img, o){
+    if (!o || o === 1) return img;
+    var swap = o >= 5;
+    var c = document.createElement('canvas');
+    c.width  = swap ? img.height : img.width;
+    c.height = swap ? img.width  : img.height;
+    var g = c.getContext('2d');
+    if (o===2) g.transform(-1,0,0,1,c.width,0);
+    else if (o===3) g.transform(-1,0,0,-1,c.width,c.height);
+    else if (o===4) g.transform(1,0,0,-1,0,c.height);
+    else if (o===5) g.transform(0,1,1,0,0,0);
+    else if (o===6) g.transform(0,1,-1,0,c.width,0);
+    else if (o===7) g.transform(0,-1,-1,0,c.width,c.height);
+    else if (o===8) g.transform(0,-1,1,0,0,c.height);
+    g.drawImage(img,0,0);
+    return c;
+  }
+
+  function loadImage(src){
+    return new Promise(function(res,rej){
+      var i = new Image();
+      i.onload = function(){ res(i); }; i.onerror = rej; i.src = src;
+    });
+  }
+  function readDataURL(file){
+    return new Promise(function(res,rej){
+      var r = new FileReader();
+      r.onload = function(e){ res(e.target.result); }; r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+  }
+  // Small thumbnail so a 40-photo queue doesn't hold 40 full-size data URLs
+  // in memory — that is what kills the tab on a phone.
+  function makeThumb(img){
+    var n = 96, c = document.createElement('canvas');
+    var r = img.width/img.height;
+    c.width = n; c.height = n;
+    var g = c.getContext('2d');
+    var sw = r>1 ? img.height : img.width, sh = sw;
+    g.drawImage(img, (img.width-sw)/2, (img.height-sh)/2, sw, sh, 0, 0, n, n);
+    return c.toDataURL('image/jpeg', 0.7);
+  }
+
+  /* ---------------- ingest ---------------- */
+  var busy = false;
+  async function addImages(files){
+    var list = Array.prototype.filter.call(files, function(f){ return f.type.indexOf('image/')===0; });
+    if (!list.length || busy) return;
+    busy = true;
+    for (var k=0;k<list.length;k++){
+      var file = list[k];
+      try{
+        var url = await readDataURL(file);
+        var ori = await readOrientation(file);
+        var raw = await loadImage(url);
+        var img = normalize(raw, ori);
+        state.images.push({
+          file:file, img:img, name:file.name || ('photo-'+(state.images.length+1)+'.jpg'),
+          type:file.type, w:img.width, h:img.height,
+          thumb:makeThumb(img), nudge:{x:0,y:0}
+        });
+        if (state.activeIndex < 0) state.activeIndex = 0;
+      }catch(e){ /* skip unreadable file */ }
+      // yield so the phone UI stays responsive on big batches
+      await new Promise(function(r){ setTimeout(r,0); });
+    }
+    busy = false;
+    renderQueue(); render(); syncBarHeight();
+  }
+
+  function renderQueue(){
+    var q = $('queue');
+    q.innerHTML = '';
+    state.images.forEach(function(it, i){
+      var row = document.createElement('div');
+      row.className = 'qitem' + (i === state.activeIndex ? ' active' : '');
+      row.innerHTML =
+        '<img alt=""><div class="qmeta"><div class="n"></div><div class="d">'+it.w+' × '+it.h+'</div></div>' +
+        '<button class="qdel" aria-label="Remove">×</button>';
+      row.querySelector('img').src = it.thumb;
+      row.querySelector('.n').textContent = it.name;
+      row.addEventListener('click', function(e){
+        if (e.target.classList.contains('qdel')) return;
+        state.activeIndex = i; renderQueue(); render();
+      });
+      row.querySelector('.qdel').addEventListener('click', function(e){
+        e.stopPropagation();
+        state.images.splice(i,1);
+        if (state.activeIndex >= state.images.length) state.activeIndex = state.images.length - 1;
+        renderQueue(); render();
+      });
+      q.appendChild(row);
+    });
+    var n = state.images.length;
+    $('qcount').textContent = n ? n + (n===1?' photo':' photos') : '';
+    $('downloadAllBtn').textContent = n > 1 ? 'Save all ('+n+')' : 'Save all';
+  }
+
+  function setupDrop(dropId, inputId, handler){
+    var drop = $(dropId), input = $(inputId);
+    input.addEventListener('change', function(e){ handler(e.target.files); input.value=''; });
+    ['dragover','dragenter'].forEach(function(ev){
+      drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('drag'); });
+    });
+    ['dragleave','drop'].forEach(function(ev){
+      drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('drag'); });
+    });
+    drop.addEventListener('drop', function(e){ handler(e.dataTransfer.files); });
+  }
+  setupDrop('dropImage','imageInput', addImages);
+  ['cameraInput','galleryInput'].forEach(function(id){
+    $(id).addEventListener('change', function(e){ addImages(e.target.files); e.target.value=''; });
+  });
+  setupDrop('dropMark','markInput', async function(files){
+    var f = files[0];
+    if (!f || f.type.indexOf('image/') !== 0) return;
+    var url = await readDataURL(f);
+    state.markImg = await loadImage(url);
+    $('markThumb').src = url; $('markThumb').style.display='block';
+    $('dropMarkLabel').textContent = f.name;
+    try{ localStorage.setItem('cpf_mark', url); }catch(e){}
+    render();
+  });
+
+  // Remember the church logo between visits — media team shouldn't re-pick it daily.
+  try{
+    var savedMark = localStorage.getItem('cpf_mark');
+    if (savedMark) loadImage(savedMark).then(function(im){
+      state.markImg = im;
+      $('markThumb').src = savedMark; $('markThumb').style.display='block';
+      $('dropMarkLabel').textContent = 'Saved church logo (tap to change)';
+      render();
+    });
+  }catch(e){}
+
+  /* ---------------- controls ---------------- */
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click', function(){
+      document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('active'); });
+      t.classList.add('active');
+      state.mode = t.dataset.tab;
+      $('tabLogo').style.display = state.mode==='logo' ? '' : 'none';
+      $('tabText').style.display = state.mode==='text' ? '' : 'none';
+      render();
+    });
+  });
+
+  document.querySelectorAll('.posbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.posbtn').forEach(function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      state.position = b.dataset.pos;
+      var a = active(); if (a) a.nudge = {x:0,y:0};
+      render();
+    });
+  });
+
+  function bindRange(id, key){
+    var el = $(id), out = $(id+'Val');
+    el.addEventListener('input', function(){
+      state[key] = +el.value;
+      out.textContent = el.value + '%';
+      renderThrottled();
+    });
+    el.addEventListener('change', render);
+  }
+  bindRange('scale','scalePct');
+  bindRange('opacity','opacityPct');
+  bindRange('margin','marginPct');
+  bindRange('strength','strengthPct');
+
+  [['wmText','text'],['wmText2','text2'],['wmFont','font'],['wmColor','color'],
+   ['backdrop','backdrop'],['format','format'],['suffix','suffix']].forEach(function(p){
+    $(p[0]).addEventListener('input', function(){ state[p[1]] = $(p[0]).value; renderThrottled(); });
+  });
+  $('quality').addEventListener('change', function(){ state.quality = +$('quality').value; render(); });
+  $('autoContrast').addEventListener('change', function(){ state.autoContrast = $('autoContrast').checked; render(); });
+  $('resetNudge').addEventListener('click', function(){ var a=active(); if(a){ a.nudge={x:0,y:0}; render(); } });
+
+  /* ---------------- geometry ---------------- */
+  // Size is measured against image WIDTH for edge placements and against the
+  // shorter side for centre placement. A bottom-edge mark then stays a
+  // consistent fraction of the line it sits on, whether the photo is a wide
+  // banner or a tall portrait from a phone.
+  function markBox(W, H, mark){
+    var edge = state.position !== 'center';
+    var basis = edge ? W : Math.min(W,H);
+    var target = basis * (state.scalePct/100);
+    var ratio = mark.w / mark.h, mw, mh;
+    if (ratio >= 1){ mw = target; mh = target/ratio; }
+    else { mh = target * (edge ? 0.55 : 1); mw = mh*ratio; }
+    var maxW = W*0.96, maxH = H*0.9;
+    if (mw > maxW){ mh *= maxW/mw; mw = maxW; }
+    if (mh > maxH){ mw *= maxH/mh; mh = maxH; }
+    return {mw:mw, mh:mh};
+  }
+
+  function anchor(W,H,mw,mh){
+    var m = Math.min(W,H) * (state.marginPct/100);
+    var cx = (W-mw)/2, cy = (H-mh)/2;
+    switch(state.position){
+      case 'top-left':     return {x:m,      y:m};
+      case 'top':          return {x:cx,     y:m};
+      case 'top-right':    return {x:W-mw-m, y:m};
+      case 'left':         return {x:m,      y:cy};
+      case 'center':       return {x:cx,     y:cy};
+      case 'right':        return {x:W-mw-m, y:cy};
+      case 'bottom-left':  return {x:m,      y:H-mh-m};
+      case 'bottom':       return {x:cx,     y:H-mh-m};
+      case 'bottom-right': return {x:W-mw-m, y:H-mh-m};
+    }
+    return {x:cx, y:cy};
+  }
+
+  // Read the pixels the watermark will cover, so the backing can adapt:
+  // dark photo -> light backing, bright photo -> dark backing.
+  function regionLuma(src, x, y, w, h){
+    try{
+      var n = 20, s = document.createElement('canvas');
+      s.width = n; s.height = n;
+      var g = s.getContext('2d', {willReadFrequently:true});
+      g.drawImage(src, Math.max(0,x), Math.max(0,y), Math.max(1,w), Math.max(1,h), 0,0,n,n);
+      var d = g.getImageData(0,0,n,n).data, sum = 0;
+      for (var i=0;i<d.length;i+=4) sum += 0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2];
+      return sum / (d.length/4) / 255;
+    }catch(e){ return 0.5; }
+  }
+
+  function textMetrics(W,H){
+    var lines = [state.text, state.text2].filter(function(s){ return s && s.trim(); });
+    if (!lines.length) return null;
+    var edge = state.position !== 'center';
+    var basis = edge ? W : Math.min(W,H);
+    var size = Math.max(10, basis * (state.scalePct/100) * 0.16);
+    ctx.save();
+    ctx.font = '600 ' + size + 'px ' + state.font;
+    var mw = 0;
+    lines.forEach(function(l){ mw = Math.max(mw, ctx.measureText(l).width); });
+    ctx.restore();
+    // if the text is wider than the frame allows, shrink to fit
+    var maxW = W * (1 - (state.marginPct/100)*2) * 0.98;
+    if (mw > maxW){ size *= maxW/mw; mw = maxW; }
+    var lh = size*1.25;
+    var mh = lines.length===2 ? lh + size*0.62*1.3 : lh;
+    return {lines:lines, size:size, mw:mw, mh:mh, lh:lh};
+  }
+
+  function drawBacking(g, W, H, x, y, mw, mh, dark){
+    var s = state.strengthPct/100;
+    g.__shadow = null;
+    if (s <= 0 || state.backdrop === 'none') return;
+    var pad = Math.max(mw,mh) * 0.16;
+    var R = Math.max(W,H)/1000;
+    var rgb = dark ? '255,255,255' : '0,0,0';
+
+    if (state.backdrop === 'scrim'){
+      // Gradient wash along the nearest edge — the broadcast-caption look.
+      // Keeps the photo visible while guaranteeing contrast under the mark.
+      var top = state.position.indexOf('top') === 0;
+      var bottom = state.position.indexOf('bottom') === 0;
+      if (top || bottom || state.position === 'center'){
+        var band = Math.min(H, (mh + pad*2) * 2.0);
+        var y0 = top ? 0 : H - band;
+        if (state.position === 'center'){ y0 = Math.max(0, y - pad); band = Math.min(H-y0, mh + pad*2); }
+        var grad = g.createLinearGradient(0, top ? 0 : H, 0, top ? band : H-band);
+        grad.addColorStop(0,'rgba('+rgb+','+(0.75*s)+')');
+        grad.addColorStop(1,'rgba('+rgb+',0)');
+        if (state.position === 'center'){
+          grad = g.createLinearGradient(0,y0,0,y0+band);
+          grad.addColorStop(0,'rgba('+rgb+',0)');
+          grad.addColorStop(0.5,'rgba('+rgb+','+(0.7*s)+')');
+          grad.addColorStop(1,'rgba('+rgb+',0)');
+        }
+        g.fillStyle = grad; g.fillRect(0, y0, W, band);
+      } else {
+        var bandW = Math.min(W, (mw + pad*2) * 1.5);
+        var left = state.position.indexOf('left') >= 0;
+        var x0 = left ? 0 : W - bandW;
+        var gr = g.createLinearGradient(left?0:W, 0, left?bandW:W-bandW, 0);
+        gr.addColorStop(0,'rgba('+rgb+','+(0.75*s)+')');
+        gr.addColorStop(1,'rgba('+rgb+',0)');
+        g.fillStyle = gr; g.fillRect(x0, 0, bandW, H);
+      }
+      return;
+    }
+
+    if (state.backdrop === 'plate'){
+      var px = x - pad, py = y - pad*0.8;
+      var pw = mw + pad*2, ph = mh + pad*1.6;
+      var r = Math.min(pw,ph)*0.22;
+      g.beginPath();
+      if (g.roundRect) g.roundRect(px,py,pw,ph,r);
+      else {
+        g.moveTo(px+r,py);
+        g.arcTo(px+pw,py,px+pw,py+ph,r); g.arcTo(px+pw,py+ph,px,py+ph,r);
+        g.arcTo(px,py+ph,px,py,r);       g.arcTo(px,py,px+pw,py,r);
+        g.closePath();
+      }
+      g.fillStyle = dark ? 'rgba(255,255,255,'+(0.85*s)+')' : 'rgba(10,31,68,'+(0.75*s)+')';
+      g.fill();
+      return;
+    }
+
+    // shadow / glow are applied as canvas shadows at draw time
+    g.__shadow = {
+      color: state.backdrop === 'glow'
+        ? (dark ? 'rgba(0,0,0,'+(0.85*s)+')' : 'rgba(255,255,255,'+(0.9*s)+')')
+        : 'rgba(0,0,0,'+(0.8*s)+')',
+      blur: (state.backdrop === 'glow' ? 16 : 11) * R * (0.6 + s*0.8),
+      dy: state.backdrop === 'glow' ? 0 : 3.5*R
+    };
+  }
+
+  /* ---------------- compositor ----------------
+     Draws at the FULL native resolution of the source image. The preview and
+     the exported file run through this exact same function, so what you see
+     on screen is precisely what gets saved. */
+  function compose(g, item){
+    var W = item.w, H = item.h;
+    g.clearRect(0,0,W,H);
+    g.drawImage(item.img, 0, 0, W, H);
+
+    var box, tm = null;
+    if (state.mode === 'logo'){
+      if (!state.markImg) return false;
+      box = markBox(W,H,{w:state.markImg.width,h:state.markImg.height});
+    } else {
+      tm = textMetrics(W,H);
+      if (!tm) return false;
+      box = {mw:tm.mw, mh:tm.mh};
+    }
+
+    var a = anchor(W,H,box.mw,box.mh);
+    var x = Math.max(0, Math.min(W-box.mw, a.x + item.nudge.x*W));
+    var y = Math.max(0, Math.min(H-box.mh, a.y + item.nudge.y*H));
+
+    var luma = state.autoContrast ? regionLuma(item.img, x, y, box.mw, box.mh) : 0.5;
+    var dark = luma < 0.45;   // area under the mark is dark -> use a light backing
+
+    g.save();
+    drawBacking(g, W, H, x, y, box.mw, box.mh, dark);
+    g.globalAlpha = state.opacityPct/100;
+    if (g.__shadow){
+      g.shadowColor = g.__shadow.color;
+      g.shadowBlur = g.__shadow.blur;
+      g.shadowOffsetY = g.__shadow.dy;
+    }
+
+    if (state.mode === 'logo'){
+      g.imageSmoothingEnabled = true;
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(state.markImg, x, y, box.mw, box.mh);
+    } else {
+      var col = state.color;
+      if (state.backdrop === 'plate') col = dark ? '#0a1f44' : '#ffffff';
+      else if (state.autoContrast && state.backdrop !== 'scrim'
+               && !dark && col.toLowerCase() === '#ffffff') col = '#0a1f44';
+      g.fillStyle = col;
+      g.textBaseline = 'top';
+      g.font = '600 ' + tm.size + 'px ' + state.font;
+      g.fillText(tm.lines[0], x, y);
+      if (tm.lines[1]){
+        g.font = '500 ' + (tm.size*0.62) + 'px ' + state.font;
+        g.fillText(tm.lines[1], x, y + tm.lh);
+      }
+    }
+    g.restore();
+    return true;
+  }
+
+  /* ---------------- preview ---------------- */
+  var lastBox = null, rafPending = false;
+  function renderThrottled(){
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(function(){ rafPending = false; render(); });
+  }
+
+  function render(){
+    var item = active();
+    var ready = !!item && (state.mode==='text' ? !!(state.text||state.text2) : !!state.markImg);
+    $('downloadBtn').disabled = !ready;
+    $('downloadAllBtn').disabled = !ready;
+    $('shareBtn').disabled = !ready || !navigator.canShare;
+
+    if (!item){
+      canvas.style.display='none'; $('stageEmpty').style.display='';
+      $('stageBadge').style.display='none'; $('hint').style.display='none';
+      lastBox = null; return;
+    }
+    $('stageEmpty').style.display='none';
+    canvas.style.display='block';
+    if (canvas.width !== item.w || canvas.height !== item.h){
+      canvas.width = item.w; canvas.height = item.h;
+    }
+    var ok = compose(ctx, item);
+
+    $('stageBadge').style.display='block';
+    $('stageBadge').textContent = item.w + ' × ' + item.h + ' px';
+    $('hint').style.display = ok ? 'block' : 'none';
+    $('footNote').textContent = item.w + ' × ' + item.h +
+      ' px · full original resolution · ' + exportLabel(item);
+
+    if (ok){
+      var b = state.mode==='logo'
+        ? markBox(item.w,item.h,{w:state.markImg.width,h:state.markImg.height})
+        : (function(){ var t = textMetrics(item.w,item.h); return {mw:t.mw, mh:t.mh}; })();
+      var a = anchor(item.w,item.h,b.mw,b.mh);
+      lastBox = {
+        x: Math.max(0, Math.min(item.w-b.mw, a.x + item.nudge.x*item.w)),
+        y: Math.max(0, Math.min(item.h-b.mh, a.y + item.nudge.y*item.h)),
+        w: b.mw, h: b.mh
+      };
+    } else lastBox = null;
+  }
+
+  /* ---------------- drag to nudge (touch + mouse) ---------------- */
+  var drag = null;
+  function toImageCoords(ev){
+    var r = canvas.getBoundingClientRect();
+    return {
+      x: (ev.clientX - r.left) / r.width  * canvas.width,
+      y: (ev.clientY - r.top)  / r.height * canvas.height
+    };
+  }
+  canvas.addEventListener('pointerdown', function(e){
+    if (!lastBox || !active()) return;
+    var p = toImageCoords(e);
+    // generous hit area so a small mark is still easy to grab with a thumb
+    var pad = Math.max(lastBox.w, lastBox.h) * 0.35;
+    if (p.x >= lastBox.x-pad && p.x <= lastBox.x+lastBox.w+pad &&
+        p.y >= lastBox.y-pad && p.y <= lastBox.y+lastBox.h+pad){
+      drag = {px:p.x, py:p.y, nx:active().nudge.x, ny:active().nudge.y};
+      canvas.setPointerCapture(e.pointerId);
+      canvas.classList.add('dragging');
+      e.preventDefault();
+    }
+  });
+  canvas.addEventListener('pointermove', function(e){
+    if (!drag) return;
+    e.preventDefault();
+    var p = toImageCoords(e), item = active();
+    item.nudge.x = drag.nx + (p.x - drag.px)/canvas.width;
+    item.nudge.y = drag.ny + (p.y - drag.py)/canvas.height;
+    renderThrottled();
+  });
+  ['pointerup','pointercancel'].forEach(function(ev){
+    canvas.addEventListener(ev, function(){ drag = null; canvas.classList.remove('dragging'); render(); });
+  });
+
+  window.addEventListener('keydown', function(e){
+    if (!active() || !lastBox) return;
+    if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+    var step = e.shiftKey ? 0.02 : 0.002, n = active().nudge;
+    if (e.key==='ArrowLeft') n.x -= step;
+    else if (e.key==='ArrowRight') n.x += step;
+    else if (e.key==='ArrowUp') n.y -= step;
+    else if (e.key==='ArrowDown') n.y += step;
+    else return;
+    e.preventDefault(); render();
+  });
+
+  /* ---------------- export ---------------- */
+  function pickType(item){
+    if (state.format !== 'auto') return state.format;
+    // Match the source: a JPEG photo stays JPEG. Forcing a 12MP phone photo
+    // to PNG balloons it from ~3MB to ~25MB for zero visible gain. PNG stays
+    // PNG so transparency and flat graphics remain lossless.
+    if (item.type === 'image/png') return 'image/png';
+    if (item.type === 'image/webp') return 'image/webp';
+    return 'image/jpeg';
+  }
+  function extOf(t){ return t==='image/png' ? 'png' : t==='image/webp' ? 'webp' : 'jpg'; }
+  function exportLabel(item){
+    var t = pickType(item);
+    return t === 'image/png' ? 'PNG, lossless'
+      : t.replace('image/','').toUpperCase() + ' @ ' + Math.round(state.quality*100) + ' quality';
+  }
+  function outName(item){
+    var base = (item.name || 'photo').replace(/\.[^.]+$/,'');
+    return base + (state.suffix||'') + '.' + extOf(pickType(item));
+  }
+
+  function exportOne(item){
+    return new Promise(function(resolve){
+      var c = document.createElement('canvas');
+      c.width = item.w; c.height = item.h;
+      var g = c.getContext('2d');
+      var type = pickType(item);
+      if (type === 'image/jpeg'){
+        // JPEG has no alpha channel; without this, transparent areas turn black.
+        g.fillStyle = '#ffffff'; g.fillRect(0,0,item.w,item.h);
+      }
+      compose(g, item);
+      c.toBlob(function(b){
+        resolve(b);
+        c.width = c.height = 0;   // free the bitmap immediately (phone memory)
+      }, type, type === 'image/png' ? undefined : state.quality);
+    });
+  }
+
+  function saveBlob(blob, name){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 8000);
+  }
+
+  $('downloadBtn').addEventListener('click', async function(){
+    var item = active(); if (!item) return;
+    var btn = this, old = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Saving…';
+    var b = await exportOne(item);
+    if (b) saveBlob(b, outName(item));
+    btn.textContent = old; btn.disabled = false;
+  });
+
+  // On phones, "Share" is what people actually want: straight into WhatsApp,
+  // Instagram or the photo library, without hunting through Downloads.
+  $('shareBtn').addEventListener('click', async function(){
+    var item = active(); if (!item || !navigator.canShare) return;
+    var btn = this, old = btn.textContent;
+    btn.disabled = true; btn.textContent = '…';
+    try{
+      var b = await exportOne(item);
+      var f = new File([b], outName(item), {type:b.type});
+      if (navigator.canShare({files:[f]})) await navigator.share({files:[f]});
+      else saveBlob(b, outName(item));
+    }catch(e){ /* user cancelled the share sheet */ }
+    btn.textContent = old; btn.disabled = false;
+  });
+
+  $('downloadAllBtn').addEventListener('click', async function(){
+    if (!state.images.length) return;
+    var bar = $('progressBar'), box = $('progress');
+    var btn = this, old = btn.textContent;
+    btn.disabled = true; box.style.display='block';
+
+    // Try one native share sheet with every photo — far nicer on a phone than
+    // N separate download prompts. Fall back to sequential saves.
+    var files = [];
+    for (var i=0;i<state.images.length;i++){
+      var b = await exportOne(state.images[i]);
+      if (b) files.push(new File([b], outName(state.images[i]), {type:b.type}));
+      bar.style.width = Math.round((i+1)/state.images.length*100) + '%';
+      await new Promise(function(r){ setTimeout(r,0); });
+    }
+    var shared = false;
+    if (isTouch && navigator.canShare && files.length){
+      try{
+        if (navigator.canShare({files:files})){ await navigator.share({files:files}); shared = true; }
+      }catch(e){ shared = true; /* cancelled — don't then dump N downloads */ }
+    }
+    if (!shared){
+      for (var j=0;j<files.length;j++){
+        saveBlob(files[j], files[j].name);
+        await new Promise(function(r){ setTimeout(r, 400); });
+      }
+    }
+    setTimeout(function(){ box.style.display='none'; bar.style.width='0'; }, 800);
+    btn.textContent = old; btn.disabled = false;
+  });
+
+  window.addEventListener('paste', function(e){
+    var f = e.clipboardData && e.clipboardData.files;
+    if (f && f.length) addImages(f);
+  });
+
+  render();
+  syncBarHeight();
+})();
+</script>
+</body>
+</html>
